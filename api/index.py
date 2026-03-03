@@ -1,169 +1,109 @@
-from flask import Flask, render_template, request, jsonify, send_file
-from cryptography.fernet import Fernet
-import base64
+from flask import Flask, request, jsonify
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.backends import default_backend
 import os
-import io
+import base64
 
-template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'templates'))
-app = Flask(__name__, template_folder=template_dir)
+app = Flask(__name__)
 
-# --- HELPER ---
-def generate_key():
-    return Fernet.generate_key().decode()
+# ==============================
+# CONFIG
+# ==============================
+PBKDF2_ITERATIONS = 390000
+SALT_SIZE = 16
+NONCE_SIZE = 12
+KEY_LENGTH = 32  # 256-bit
 
-@app.route('/')
-def home():
-    return render_template('index.html')
+# ==============================
+# HELPER: Derive Key from Password
+# ==============================
+def derive_key(password: str, salt: bytes) -> bytes:
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=KEY_LENGTH,
+        salt=salt,
+        iterations=PBKDF2_ITERATIONS,
+        backend=default_backend()
+    )
+    return kdf.derive(password.encode())
 
-# ==========================================
-# MODE 1: OBFUSCATOR (UTF-8 SAFE & EMOJI SUPPORT)
-# ==========================================
-@app.route('/api/obfuscate', methods=['POST'])
-def obfuscate():
-    code = ""
-    filename = "result"
-    lang = request.form.get('lang') 
+# ==============================
+# LOCK (ENCRYPT)
+# ==============================
+@app.route("/api/lock", methods=["POST"])
+def lock():
+    password = request.form.get("password")
+    if not password:
+        return jsonify({"error": "Password wajib diisi!"})
 
-    # 1. Handle Input (File / Text)
-    if 'file' in request.files and request.files['file'].filename != '':
-        f = request.files['file']
-        # Pakai utf-8 dan ignore error biar emoji ga bikin crash
-        code = f.read().decode('utf-8', errors='ignore') 
-        filename = f.filename
-    else:
-        code = request.form.get('code_text')
-        if not code: return jsonify({'error': 'Code kosong!'})
+    if "file" not in request.files:
+        return jsonify({"error": "Upload file dulu!"})
 
-    # 2. Logic Obfuscation (ANTI-GARBLED TEXT)
+    file = request.files["file"]
+    data = file.read()
+
+    if len(data) > 10 * 1024 * 1024:
+        return jsonify({"error": "Max 10MB!"})
+
     try:
-        # Encode script asli ke Base64 UTF-8
-        encoded_bytes = base64.b64encode(code.encode('utf-8'))
-        encoded_str = encoded_bytes.decode('utf-8')
-        
-        result_code = ""
-        ext = ".txt"
+        salt = os.urandom(SALT_SIZE)
+        key = derive_key(password, salt)
 
-        if lang == 'python':
-            # Python support utf-8 native, aman
-            result_code = f'# Encrypted by RayCrypto\nimport base64\nexec(base64.b64decode("{encoded_str}").decode("utf-8"))'
-            ext = ".py"
-            
-        elif lang == 'javascript':
-            # JS butuh decodeURIComponent(escape(...)) buat handle Emoji/UTF-8
-            result_code = f"""
-// Encrypted by RayCrypto
-var _0x = "{encoded_str}";
-var _0xDec = function(str) {{
-    return decodeURIComponent(escape(window.atob(str)));
-}};
-eval(_0xDec(_0x));
-"""
-            ext = ".js"
+        aesgcm = AESGCM(key)
+        nonce = os.urandom(NONCE_SIZE)
 
-        elif lang == 'html':
-            # HTML Paling rawan error encoding. Kita pake wrapper script UTF-8 safe.
-            result_code = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Protected Page</title>
-</head>
-<body>
-<script type="text/javascript">
-    var _0x = "{encoded_str}";
-    function _utf8_decode(str) {{
-        return decodeURIComponent(escape(window.atob(str)));
-    }}
-    document.write(_utf8_decode(_0x));
-</script>
-</body>
-</html>"""
-            ext = ".html"
-            
-        else:
-            return jsonify({'error': 'Bahasa tidak support!'})
+        ciphertext = aesgcm.encrypt(nonce, data, None)
 
-        # Kirim File
-        mem = io.BytesIO()
-        mem.write(result_code.encode('utf-8')) # Pastikan output file formatnya UTF-8
-        mem.seek(0)
-        
-        return send_file(
-            mem, 
-            as_attachment=True, 
-            download_name=f"ENC_{filename}{ext}", 
-            mimetype="text/plain"
-        )
+        # Format: salt + nonce + ciphertext
+        final_data = salt + nonce + ciphertext
 
-    except Exception as e:
-        return jsonify({'error': str(e)})
-
-
-# ==========================================
-# MODE 2: VAULT (SAMA SEPERTI SEBELUMNYA)
-# ==========================================
-@app.route('/api/vault/lock', methods=['POST'])
-def vault_lock():
-    key = generate_key()
-    f_crypto = Fernet(key.encode())
-    
-    if 'text_data' in request.form and request.form['text_data']:
-        text = request.form['text_data']
-        # Encode text input ke bytes utf-8 dulu sebelum encrypt
-        enc_text = f_crypto.encrypt(text.encode('utf-8')).decode('utf-8')
-        return jsonify({'type': 'text', 'result': enc_text, 'key': key})
-
-    if 'file_data' in request.files:
-        file = request.files['file_data']
-        file_bytes = file.read()
-        
-        if len(file_bytes) > 4 * 1024 * 1024:
-            return jsonify({'error': 'File max 4MB!'})
-
-        enc_bytes = f_crypto.encrypt(file_bytes)
-        mem = io.BytesIO()
-        mem.write(enc_bytes)
-        mem.seek(0)
-        
         return jsonify({
-            'type': 'file',
-            'filename': file.filename + ".enc",
-            'file_b64': base64.b64encode(mem.getvalue()).decode('utf-8'),
-            'key': key
+            "filename": file.filename + ".vault",
+            "file_b64": base64.b64encode(final_data).decode()
         })
 
-    return jsonify({'error': 'Data kosong!'})
+    except Exception:
+        return jsonify({"error": "Encryption gagal!"})
 
-@app.route('/api/vault/unlock', methods=['POST'])
-def vault_unlock():
-    key = request.form.get('key')
-    if not key: return jsonify({'error': 'Butuh Key!'})
-    
+# ==============================
+# UNLOCK (DECRYPT)
+# ==============================
+@app.route("/api/unlock", methods=["POST"])
+def unlock():
+    password = request.form.get("password")
+    if not password:
+        return jsonify({"error": "Password wajib diisi!"})
+
+    if "file" not in request.files:
+        return jsonify({"error": "Upload file vault dulu!"})
+
+    file = request.files["file"]
+    raw = file.read()
+
     try:
-        f_crypto = Fernet(key.encode())
+        decoded = base64.b64decode(raw)
 
-        if 'text_data' in request.form and request.form['text_data']:
-            enc_text = request.form['text_data']
-            dec_text = f_crypto.decrypt(enc_text.encode('utf-8')).decode('utf-8')
-            return jsonify({'type': 'text', 'result': dec_text})
+        salt = decoded[:SALT_SIZE]
+        nonce = decoded[SALT_SIZE:SALT_SIZE+NONCE_SIZE]
+        ciphertext = decoded[SALT_SIZE+NONCE_SIZE:]
 
-        if 'file_data' in request.files:
-            file = request.files['file_data']
-            file_bytes = file.read()
-            dec_bytes = f_crypto.decrypt(file_bytes)
-            orig_name = file.filename.replace('.enc', '')
-            
-            return jsonify({
-                'type': 'file',
-                'filename': "OPEN_" + orig_name,
-                'file_b64': base64.b64encode(dec_bytes).decode('utf-8')
-            })
-            
-    except Exception as e:
-        return jsonify({'error': 'Gagal! Key salah atau file rusak.'})
-        
-    return jsonify({'error': 'Data invalid'})
+        key = derive_key(password, salt)
+        aesgcm = AESGCM(key)
 
-if __name__ == '__main__':
-    app.run(debug=True)
+        plaintext = aesgcm.decrypt(nonce, ciphertext, None)
+
+        return jsonify({
+            "filename": "OPEN_" + file.filename.replace(".vault", ""),
+            "file_b64": base64.b64encode(plaintext).decode()
+        })
+
+    except Exception:
+        return jsonify({"error": "Decrypt gagal! Password salah atau file rusak."})
+
+# ==============================
+# MAIN
+# ==============================
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=False)
