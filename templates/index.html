@@ -1,501 +1,117 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ray's Crypto Vault</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <style>
-        /* --- VARIABLES & RESET --- */
-        :root {
-            --bg-gradient: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-            --glass-bg: rgba(255, 255, 255, 0.05);
-            --glass-border: rgba(255, 255, 255, 0.1);
-            --primary: #8b5cf6;
-            --primary-hover: #7c3aed;
-            --secondary: #10b981;
-            --danger: #ef4444;
-            --text: #f3f4f6;
-            --text-muted: #9ca3af;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vault AES-256</title>
 
-        * { box-sizing: border-box; outline: none; }
-        
-        body {
-            font-family: 'Inter', sans-serif;
-            background: var(--bg-gradient);
-            background-size: 400% 400%;
-            animation: gradientBG 15s ease infinite;
-            color: var(--text);
-            margin: 0;
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
-
-        @keyframes gradientBG {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-
-        /* --- MAIN CARD --- */
-        .glass-card {
-            background: var(--glass-bg);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-            width: 100%;
-            max-width: 650px;
-            overflow: hidden;
-            animation: slideUp 0.6s ease-out;
-        }
-
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* --- HEADER & TABS --- */
-        .header {
-            text-align: center;
-            padding: 25px 20px 0;
-        }
-        .header h2 { margin: 0; font-weight: 700; letter-spacing: -1px; }
-        .header p { color: var(--text-muted); font-size: 0.9rem; margin-top: 5px; }
-
-        .tabs {
-            display: flex;
-            padding: 20px;
-            gap: 10px;
-            background: rgba(0,0,0,0.2);
-        }
-
-        .tab-btn {
-            flex: 1;
-            padding: 12px;
-            border: none;
-            background: transparent;
-            color: var(--text-muted);
-            font-weight: 600;
-            cursor: pointer;
-            border-radius: 12px;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            font-size: 0.9rem;
-        }
-
-        .tab-btn i { font-size: 1rem; }
-
-        .tab-btn:hover { background: rgba(255,255,255,0.05); color: white; }
-        
-        .tab-btn.active {
-            background: var(--primary);
-            color: white;
-            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
-        }
-
-        /* --- CONTENT --- */
-        .content { display: none; padding: 25px; animation: fadeIn 0.4s; }
-        .content.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-        /* --- FORMS --- */
-        .form-group { margin-bottom: 20px; }
-        label { display: block; margin-bottom: 8px; font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
-        
-        .input-box, select {
-            width: 100%;
-            padding: 14px;
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid var(--glass-border);
-            border-radius: 10px;
-            color: white;
-            font-family: 'Consolas', monospace;
-            transition: 0.3s;
-        }
-
-        .input-box:focus, select:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
-        }
-
-        textarea { resize: vertical; min-height: 120px; }
-
-        /* --- CUSTOM FILE UPLOAD --- */
-        .file-upload-wrapper {
-            position: relative;
-            width: 100%;
-            height: 100px;
-            border: 2px dashed var(--glass-border);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            cursor: pointer;
-            transition: 0.3s;
-            background: rgba(0,0,0,0.1);
-        }
-        
-        .file-upload-wrapper:hover { border-color: var(--primary); background: rgba(139, 92, 246, 0.05); }
-        
-        .file-upload-wrapper input[type="file"] {
-            position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer;
-        }
-        
-        .file-info { text-align: center; pointer-events: none; }
-        .file-info i { font-size: 24px; color: var(--text-muted); margin-bottom: 5px; }
-        .file-info span { font-size: 0.85rem; color: var(--text-muted); }
-
-        /* --- BUTTONS --- */
-        .action-btn {
-            width: 100%;
-            padding: 14px;
-            border: none;
-            border-radius: 10px;
-            font-weight: 700;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-
-        .btn-primary { background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: white; }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(139, 92, 246, 0.4); }
-
-        .btn-danger { background: linear-gradient(135deg, #ef4444, #b91c1c); color: white; }
-        .btn-danger:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(239, 68, 68, 0.4); }
-
-        .btn-success { background: linear-gradient(135deg, #10b981, #059669); color: white; }
-        .btn-success:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(16, 185, 129, 0.4); }
-
-        /* --- RESULT BOX --- */
-        .result-container {
-            margin-top: 20px;
-            padding: 15px;
-            background: rgba(0,0,0,0.4);
-            border-radius: 10px;
-            border-left: 4px solid var(--secondary);
-            display: none;
-            animation: fadeIn 0.3s;
-        }
-        .key-badge {
-            display: inline-block;
-            background: rgba(239, 68, 68, 0.2);
-            color: #fca5a5;
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-size: 0.75rem;
-            margin-bottom: 8px;
-            border: 1px solid rgba(239, 68, 68, 0.3);
-        }
-        .result-text { font-family: monospace; word-break: break-all; color: var(--secondary); font-size: 0.9rem; }
-
-        /* --- TOAST NOTIFICATION --- */
-        .toast {
-            position: fixed; top: 20px; right: 20px;
-            background: rgba(31, 41, 55, 0.9);
-            color: white; padding: 12px 20px;
-            border-radius: 8px; border-left: 4px solid var(--primary);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-            display: flex; align-items: center; gap: 10px;
-            transform: translateX(150%); transition: 0.3s; z-index: 1000;
-        }
-        .toast.show { transform: translateX(0); }
-
-        /* --- LOADING SPINNER --- */
-        .spinner {
-            width: 20px; height: 20px;
-            border: 3px solid rgba(255,255,255,0.3);
-            border-radius: 50%; border-top-color: white;
-            animation: spin 1s linear infinite; display: none;
-        }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
-
-        /* --- RESPONSIVE MOBILE --- */
-        @media (max-width: 600px) {
-            .tabs { flex-direction: column; gap: 5px; }
-            .tab-btn { justify-content: flex-start; border-radius: 8px; }
-            .header h2 { font-size: 1.5rem; }
-            body { padding: 10px; align-items: flex-start; }
-            .glass-card { margin-top: 20px; }
-        }
-    </style>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background: #0f172a;
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+.card {
+    background: #1e293b;
+    padding: 30px;
+    border-radius: 12px;
+    width: 400px;
+}
+h2 {
+    margin-top: 0;
+}
+input, button {
+    width: 100%;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 6px;
+    border: none;
+}
+input {
+    background: #334155;
+    color: white;
+}
+button {
+    cursor: pointer;
+    font-weight: bold;
+}
+.lock { background: #dc2626; color: white; }
+.unlock { background: #16a34a; color: white; }
+.result {
+    margin-top: 15px;
+    font-size: 14px;
+    word-break: break-all;
+}
+</style>
 </head>
 <body>
 
-    <div id="toast" class="toast">
-        <i class="fas fa-info-circle"></i>
-        <span id="toastMsg">Notification</span>
-    </div>
+<div class="card">
+    <h2>🔐 Secure Vault</h2>
 
-    <div class="glass-card">
-        <div class="header">
-            <h2>Ray's <span style="color:var(--primary)">CryptoVault</span></h2>
-            <p>Secure Encyption & Code Obfuscation Tool</p>
-        </div>
+    <input type="password" id="password" placeholder="Masukkan Password">
 
-        <div class="tabs">
-            <button class="tab-btn active" onclick="setTab('obf', this)">
-                <i class="fas fa-mask"></i> Obfuscator
-            </button>
-            <button class="tab-btn" onclick="setTab('lock', this)">
-                <i class="fas fa-lock"></i> Lock Vault
-            </button>
-            <button class="tab-btn" onclick="setTab('unlock', this)">
-                <i class="fas fa-key"></i> Unlock Vault
-            </button>
-        </div>
+    <input type="file" id="file">
 
-        <div id="tab-obf" class="content active">
-            <div class="form-group">
-                <label>Language Target</label>
-                <select id="obfLang">
-                    <option value="python">🐍 Python (.py)</option>
-                    <option value="javascript">📜 JavaScript (.js)</option>
-                    <option value="html">🌐 HTML (Web)</option>
-                </select>
-            </div>
+    <button class="lock" onclick="lockFile()">Encrypt</button>
+    <button class="unlock" onclick="unlockFile()">Decrypt</button>
 
-            <div class="form-group">
-                <label>Paste Source Code</label>
-                <textarea id="obfText" class="input-box" placeholder="// Paste your code here..."></textarea>
-            </div>
-
-            <div class="form-group">
-                <label>Or Upload File</label>
-                <div class="file-upload-wrapper">
-                    <input type="file" id="obfFile" onchange="updateFileName(this, 'obfLabel')">
-                    <div class="file-info" id="obfLabel">
-                        <i class="fas fa-cloud-upload-alt"></i>
-                        <span>Drag & drop or click to upload code</span>
-                    </div>
-                </div>
-            </div>
-
-            <button class="action-btn btn-primary" onclick="runObf(this)">
-                <div class="spinner"></div>
-                <span><i class="fas fa-magic"></i> Obfuscate & Download</span>
-            </button>
-        </div>
-
-        <div id="tab-lock" class="content">
-            <div class="form-group">
-                <label>Secret Text (Optional)</label>
-                <textarea id="lockText" class="input-box" placeholder="Write something secret..."></textarea>
-            </div>
-
-            <div class="form-group">
-                <label>Secure File Upload (Max 4MB)</label>
-                <div class="file-upload-wrapper">
-                    <input type="file" id="lockFile" onchange="updateFileName(this, 'lockLabel')">
-                    <div class="file-info" id="lockLabel">
-                        <i class="fas fa-file-shield"></i>
-                        <span>Upload Photos, Videos, or Files</span>
-                    </div>
-                </div>
-            </div>
-
-            <button class="action-btn btn-danger" onclick="runVault('lock', this)">
-                <div class="spinner"></div>
-                <span><i class="fas fa-lock"></i> Encrypt Everything</span>
-            </button>
-
-            <div id="resLock" class="result-container"></div>
-        </div>
-
-        <div id="tab-unlock" class="content">
-            <div class="form-group">
-                <label>Decryption Key</label>
-                <input type="text" id="unlockKey" class="input-box" placeholder="Paste your key here...">
-            </div>
-
-            <div class="form-group">
-                <label>Encrypted Text (Optional)</label>
-                <textarea id="unlockText" class="input-box" placeholder="Paste encrypted text..."></textarea>
-            </div>
-
-            <div class="form-group">
-                <label>Encrypted File (.enc)</label>
-                <div class="file-upload-wrapper">
-                    <input type="file" id="unlockFile" onchange="updateFileName(this, 'unlockLabel')">
-                    <div class="file-info" id="unlockLabel">
-                        <i class="fas fa-unlock-alt"></i>
-                        <span>Upload .enc file</span>
-                    </div>
-                </div>
-            </div>
-
-            <button class="action-btn btn-success" onclick="runVault('unlock', this)">
-                <div class="spinner"></div>
-                <span><i class="fas fa-box-open"></i> Decrypt & Open</span>
-            </button>
-
-            <div id="resUnlock" class="result-container"></div>
-        </div>
-
-    </div>
+    <div class="result" id="result"></div>
+</div>
 
 <script>
-    // --- UI HELPERS ---
-    function setTab(id, btn) {
-        document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('tab-'+id).classList.add('active');
-        btn.classList.add('active');
-    }
+async function lockFile() {
+    const password = document.getElementById("password").value;
+    const file = document.getElementById("file").files[0];
+    if(!password || !file) return alert("Password dan file wajib!");
 
-    function updateFileName(input, labelId) {
-        const label = document.getElementById(labelId).querySelector('span');
-        if (input.files && input.files[0]) {
-            label.innerText = "Selected: " + input.files[0].name;
-            label.style.color = "var(--secondary)";
-        } else {
-            label.innerText = "Drag & drop or click to upload";
-        }
-    }
+    const formData = new FormData();
+    formData.append("password", password);
+    formData.append("file", file);
 
-    function showToast(msg, type='info') {
-        const toast = document.getElementById('toast');
-        const txt = document.getElementById('toastMsg');
-        txt.innerText = msg;
-        
-        toast.style.borderLeftColor = type === 'error' ? 'var(--danger)' : 'var(--secondary)';
-        toast.classList.add('show');
-        
-        setTimeout(() => toast.classList.remove('show'), 3000);
-    }
+    const res = await fetch("/api/lock", {
+        method: "POST",
+        body: formData
+    });
 
-    function toggleLoading(btn, isLoading) {
-        const spinner = btn.querySelector('.spinner');
-        const span = btn.querySelector('span');
-        if(isLoading) {
-            spinner.style.display = 'block';
-            span.style.opacity = '0.5';
-            btn.disabled = true;
-        } else {
-            spinner.style.display = 'none';
-            span.style.opacity = '1';
-            btn.disabled = false;
-        }
-    }
+    const data = await res.json();
+    if(data.error) return alert(data.error);
 
-    // --- LOGIC OBFUSCATOR ---
-    async function runObf(btn) {
-        const formData = new FormData();
-        const file = document.getElementById('obfFile').files[0];
-        const text = document.getElementById('obfText').value;
-        const lang = document.getElementById('obfLang').value;
-        
-        if(!file && !text) return showToast("Input kosong bro!", "error");
+    downloadFile(data.file_b64, data.filename);
+    document.getElementById("result").innerText = "File berhasil dienkripsi.";
+}
 
-        formData.append('lang', lang);
-        if(file) formData.append('file', file);
-        else formData.append('code_text', text);
+async function unlockFile() {
+    const password = document.getElementById("password").value;
+    const file = document.getElementById("file").files[0];
+    if(!password || !file) return alert("Password dan file wajib!");
 
-        toggleLoading(btn, true);
+    const formData = new FormData();
+    formData.append("password", password);
+    formData.append("file", file);
 
-        try {
-            const response = await fetch('/api/obfuscate', { method: 'POST', body: formData });
-            
-            if(response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                
-                // Get filename safely
-                const disposition = response.headers.get('Content-Disposition');
-                let filename = `obfuscated_result.${lang === 'python' ? 'py' : lang === 'javascript' ? 'js' : 'html'}`;
-                if (disposition && disposition.includes('filename=')) {
-                    filename = disposition.split('filename=')[1].replace(/['"]/g, '');
-                }
-                
-                a.download = filename;
-                a.click();
-                showToast("Berhasil! File terunduh.", "success");
-            } else {
-                showToast("Gagal memproses kode!", "error");
-            }
-        } catch (e) {
-            showToast("Error koneksi server.", "error");
-        }
-        toggleLoading(btn, false);
-    }
+    const res = await fetch("/api/unlock", {
+        method: "POST",
+        body: formData
+    });
 
-    // --- LOGIC VAULT ---
-    async function runVault(action, btn) {
-        const formData = new FormData();
-        const isLock = action === 'lock';
-        
-        const fileInput = document.getElementById(isLock ? 'lockFile' : 'unlockFile');
-        const textInput = document.getElementById(isLock ? 'lockText' : 'unlockText');
-        const resBox = document.getElementById(isLock ? 'resLock' : 'resUnlock');
-        
-        if(!isLock) {
-            const key = document.getElementById('unlockKey').value;
-            if(!key) return showToast("Kuncinya mana bro?", "error");
-            formData.append('key', key);
-        }
+    const data = await res.json();
+    if(data.error) return alert(data.error);
 
-        if(fileInput.files[0]) formData.append('file_data', fileInput.files[0]);
-        if(textInput.value) formData.append('text_data', textInput.value);
+    downloadFile(data.file_b64, data.filename);
+    document.getElementById("result").innerText = "File berhasil didekripsi.";
+}
 
-        if(!fileInput.files[0] && !textInput.value) return showToast("Upload file atau isi teks dulu!", "error");
-
-        toggleLoading(btn, true);
-        resBox.style.display = 'none';
-
-        try {
-            const res = await fetch(`/api/vault/${action}`, { method: 'POST', body: formData });
-            const data = await res.json();
-
-            if(data.error) {
-                showToast(data.error, "error");
-            } else {
-                showToast(isLock ? "Berhasil dikunci!" : "Berhasil dibuka!", "success");
-                resBox.style.display = 'block';
-                let html = "";
-
-                if(data.type === 'text') {
-                    html += `<div class="key-badge">RESULT TEXT</div><div class="result-text">${data.result}</div>`;
-                }
-                
-                if(data.type === 'file') {
-                    const link = document.createElement('a');
-                    link.href = `data:application/octet-stream;base64,${data.file_b64}`;
-                    link.download = data.filename;
-                    link.click();
-                    html += `<div style="color:var(--secondary)"><i class="fas fa-check-circle"></i> File <b>${data.filename}</b> otomatis diunduh!</div>`;
-                }
-
-                if(isLock && data.key) {
-                    html += `<div style="margin-top:15px; padding-top:10px; border-top:1px dashed #555;">
-                                <div class="key-badge">⚠️ SECRET KEY (SAVE IT)</div>
-                                <div class="result-text" style="color:#fca5a5; cursor:pointer;" onclick="navigator.clipboard.writeText('${data.key}'); showToast('Key disalin!', 'success')">${data.key} <i class="fas fa-copy"></i></div>
-                             </div>`;
-                }
-                resBox.innerHTML = html;
-            }
-
-        } catch (e) {
-            showToast("Server Error / File terlalu besar.", "error");
-        }
-        toggleLoading(btn, false);
-    }
+function downloadFile(base64Data, filename) {
+    const link = document.createElement("a");
+    link.href = "data:application/octet-stream;base64," + base64Data;
+    link.download = filename;
+    link.click();
+}
 </script>
 
 </body>
